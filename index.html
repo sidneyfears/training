@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pace & Zielzeit Rechner</title>
+<style>
+body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:700px;margin:auto;padding:24px;color:#222}
+h1{margin-bottom:6px}.sub{color:#666;margin-bottom:22px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+label{font-weight:600;font-size:14px}input,select{width:100%;box-sizing:border-box;padding:11px;margin-top:6px;border:1px solid #ccc;border-radius:8px;font-size:16px}
+.card{margin-top:20px;padding:18px;border:1px solid #ddd;border-radius:12px}.big{font-size:30px;font-weight:700;margin:5px 0 14px}
+.splits{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.split{padding:9px;background:#f6f6f6;border-radius:8px}.ref{margin-top:18px;font-size:14px}
+@media(max-width:560px){.grid{grid-template-columns:1fr}}
+</style>
+<body>
+<h1>🏃 Pace- & Zielzeit-Rechner</h1><div class="sub">Pace ↔ Zielzeit plus Zwischenzeiten</div>
+<div class="grid">
+<div><label>Distanz</label><select id="d"><option value="5">5 km</option><option value="10">10 km</option><option value="15">15 km</option><option value="21.0975" selected>Halbmarathon (21,1 km)</option><option value="42.195">Marathon (42,2 km)</option></select></div>
+<div><label>Modus</label><select id="m"><option value="p">Pace → Zielzeit</option><option value="t">Zielzeit → Pace</option></select></div>
+</div>
+<div class="grid" style="margin-top:14px"><div id="pb"><label>Pace (min/km)</label><input id="p" value="4:30"></div><div id="tb" style="display:none"><label>Zielzeit (hh:mm:ss)</label><input id="t" value="1:35:00"></div></div>
+<div class="card"><div style="color:#666">Ergebnis</div><div class="big" id="r"></div><div id="s"></div><div class="splits" id="sp"></div></div>
+<div class="ref"><b>Aktuelle Referenzen</b><br>5 km · 20:47 · 4:09/km<br>10 km · 43:55 · 4:24/km<br>HM · 1:35:51 · 4:33/km<br>HM-Ziel · 1:35:00 · ca. 4:30/km</div>
+<script>
+const d=document.getElementById('d'),m=document.getElementById('m'),p=document.getElementById('p'),t=document.getElementById('t'),r=document.getElementById('r'),s=document.getElementById('s'),sp=document.getElementById('sp');
+function sec(x){let a=x.split(':').map(Number);return a.length==2?a[0]*60+a[1]:a[0]*3600+a[1]*60+a[2]}
+function fmt(x){x=Math.round(x);let h=Math.floor(x/3600);x%=3600;let m=Math.floor(x/60),z=x%60;return h?h+':'+String(m).padStart(2,'0')+':'+String(z).padStart(2,'0'):m+':'+String(z).padStart(2,'0')}
+function calc(){let km=+d.value, ps;if(m.value==='p'){ps=sec(p.value||'0:00');r.textContent=fmt(ps*km);s.textContent='bei '+fmt(ps)+' min/km'}else{let tt=sec(t.value||'0:00');ps=tt/km;r.textContent=Math.floor(ps/60)+':'+String(Math.round(ps%60)).padStart(2,'0')+' min/km';s.textContent='für '+fmt(tt)+' Zielzeit'}let a=[1,5,10,15,21.0975,42.195].filter(x=>x<=km+.001);sp.innerHTML=a.map(x=>'<div class="split"><b>'+(x===21.0975?'HM':x+' km')+'</b><br>'+fmt(ps*x)+'</div>').join('')}
+m.onchange=()=>{let q=m.value==='p';document.getElementById('pb').style.display=q?'block':'none';document.getElementById('tb').style.display=q?'none':'block';calc()};[d,p,t].forEach(x=>x.oninput=calc);d.onchange=calc;calc();
+</script>
