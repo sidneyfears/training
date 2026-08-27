@@ -5,20 +5,22 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>🏃 Lauf-Rechner</title>
 <style>
-body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:760px;margin:auto;padding:22px;color:#222;line-height:1.4}
-h1{margin:0 0 5px}.sub{color:#666;margin-bottom:22px}.tabs{display:flex;gap:8px;margin-bottom:18px}.tabs button{padding:9px 13px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer}.tabs button.active{background:#eee}
+body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:800px;margin:auto;padding:22px;color:#222;line-height:1.4}
+h1{margin:0 0 5px}.sub{color:#666;margin-bottom:22px}
+.tabs{display:flex;gap:8px;margin-bottom:18px}.tabs button{padding:9px 13px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer}.tabs button.active{background:#eee}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.box{margin-top:14px}label{font-weight:600;font-size:14px}
 input,select{width:100%;box-sizing:border-box;padding:11px;margin-top:6px;border:1px solid #ccc;border-radius:8px;font-size:16px}
 .card{margin-top:20px;padding:18px;border:1px solid #ddd;border-radius:12px}.big{font-size:30px;font-weight:700;margin:5px 0 12px}
 .splits{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}.split{padding:9px;background:#f6f6f6;border-radius:8px}
 .fuel{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.fuel div{padding:10px;background:#f6f6f6;border-radius:8px}
-.note{margin-top:14px;color:#666;font-size:14px}.hidden{display:none}
+.note{margin-top:12px;color:#666;font-size:14px}.hidden{display:none}
+.badge{display:inline-block;padding:5px 9px;border-radius:7px;background:#f1f1f1;font-size:13px;margin-top:5px}
 @media(max-width:560px){.grid,.fuel{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <h1>🏃 Lauf-Rechner</h1>
-<div class="sub">Pace, Zielzeit, Wettkampf-Splits und Fueling</div>
+<div class="sub">Pace, Zielzeit, Wettkampf-Splits und automatisch berechnetes Fueling</div>
 
 <div class="tabs">
 <button id="bpace" class="active">Pace & Zielzeit</button>
@@ -31,58 +33,86 @@ input,select{width:100%;box-sizing:border-box;padding:11px;margin-top:6px;border
 <option value="5">5 km</option><option value="10">10 km</option><option value="15">15 km</option>
 <option value="21.0975" selected>Halbmarathon (21,1 km)</option><option value="42.195">Marathon (42,2 km)</option>
 </select></div>
-<div><label>Modus</label><select id="m"><option value="p">Pace → Zielzeit</option><option value="t">Zielzeit → Pace</option></select></div>
+<div><label>Belastungstyp</label><select id="type">
+<option value="easy">Easy / Longrun</option><option value="tempo">Tempo / Schwelle</option><option value="race" selected>Race / Wettkampf</option>
+</select></div>
 </div>
 <div class="grid box">
-<div id="pb"><label>Pace (min/km)</label><input id="p" value="4:30" placeholder="4:30"></div>
-<div id="tb" class="hidden"><label>Zielzeit (hh:mm:ss)</label><input id="t" value="1:35:00" placeholder="1:35:00"></div>
+<div><label>Pace (min/km)</label><input id="p" value="4:30" placeholder="4:30"></div>
+<div><label>Alternativ: Zielzeit (hh:mm:ss)</label><input id="t" value="" placeholder="z. B. 1:35:00"></div>
 </div>
-<div class="card"><div class="note">Ergebnis</div><div class="big" id="r"></div><div id="s"></div>
+<div class="note">Wenn eine Zielzeit eingetragen ist, wird diese verwendet. Sonst wird die Laufzeit aus Distanz und Pace berechnet.</div>
+
+<div class="card"><div class="note">Berechnete Laufzeit</div><div class="big" id="r"></div><div id="s"></div>
 <div class="splits" id="sp"></div></div>
+
+<div class="card"><b>Automatisches Fueling-Ziel</b><div class="badge" id="carbRate"></div>
+<div class="note">Das Ziel wird anhand der Belastungsdauer und des Belastungstyps festgelegt.</div></div>
+
 <div class="card"><b>Aktuelle Referenzen</b><br>
 5 km · 20:47 · 4:09/km<br>10 km · 43:55 · 4:24/km<br>HM · 1:35:51 · 4:33/km<br>HM-Ziel · 1:35:00 · ca. 4:30/km</div>
 </section>
 
 <section id="fuelTab" class="hidden">
 <div class="grid">
-<div><label>Wettkampfdauer</label><input id="ft" value="1:35:00" placeholder="1:35:00"></div>
-<div><label>Kohlenhydrate / Stunde</label><input id="carbs" type="number" value="70" min="20" max="120"></div>
+<div><label>Carbs pro Gel (g)</label><input id="gelCarbs" type="number" value="30" min="1"></div>
+<div><label>Erstes Gel nach (min)</label><input id="firstGel" type="number" value="20" min="0"></div>
 </div>
-<div class="card"><div class="note">Plan</div><div class="big" id="fg"></div><div id="fc"></div>
-<div class="fuel" id="fs"></div></div>
+<div class="card"><div class="note">Aus Pace-& Zielzeit-Tab übernommen</div>
+<div class="big" id="fuelTime"></div>
+<div id="fuelMeta"></div>
+<div class="fuel" id="fuelSchedule"></div></div>
 <div class="card"><b>Dein DIY-Gel</b><br>
 60 g Maltodextrin + 30 g Fruktose + 110–120 ml Wasser + 1 g Salz.<br>
-Auf 3 Gels verteilt: ca. 30 g Kohlenhydrate pro Gel, ca. 65 ml Volumen.</div>
+= ca. <b>30 g Kohlenhydrate pro Gel</b>, ca. 65 ml Volumen.</div>
 <div class="card"><b>Race-Day-Frühstück</b><br>
-4 Scheiben Toast + 60 g Marmelade + 1 Banane + 250 ml Wasser/Tee.
-<br>Grob 100–110 g Kohlenhydrate, ca. 2,5–3 h vor dem Start.</div>
-<div class="note">Der Fueling-Rechner ist eine Planungsrechnung. Verträglichkeit und konkrete Aufnahme sollten vorher im Training getestet werden.</div>
+4 Scheiben Toast + 60 g Marmelade + 1 Banane + 250 ml Wasser/Tee, ca. 2,5–3 h vor dem Start.</div>
+<div class="note">Planungswerte: Die automatische g/h-Empfehlung ist eine vereinfachte Trainingslogik und ersetzt keine individuell getestete Verträglichkeit.</div>
 </section>
 
 <script>
 const $=id=>document.getElementById(id);
 function sec(x){let a=(x||'0:00').split(':').map(Number);return a.length==2?a[0]*60+a[1]:a[0]*3600+a[1]*60+a[2]}
 function fmt(x){x=Math.round(x);let h=Math.floor(x/3600);x%=3600;let m=Math.floor(x/60),s=x%60;return h?h+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0'):m+':'+String(s).padStart(2,'0')}
-function paceCalc(){
- let km=+$('d').value,ps;
- if($('m').value==='p'){ps=sec($('p').value);$('r').textContent=fmt(ps*km);$('s').textContent='bei '+fmt(ps)+' min/km'}
- else{let tt=sec($('t').value);ps=tt/km;$('r').textContent=Math.floor(ps/60)+':'+String(Math.round(ps%60)).padStart(2,'0')+' min/km';$('s').textContent='für '+fmt(tt)+' Zielzeit'}
- let a=[1,5,10,15,21.0975,42.195].filter(x=>x<=km+.001);
- $('sp').innerHTML=a.map(x=>'<div class="split"><b>'+(x===21.0975?'HM':x+' km')+'</b><br>'+fmt(ps*x)+'</div>').join('')
+function carbRate(min,type){
+ if(min<60)return 0;
+ if(type==='easy')return min<=90?40:60;
+ if(type==='tempo')return min<=90?50:70;
+ return min<=90?60:min<=120?70:80;
 }
-function fuelCalc(){
- let dur=sec($('ft').value),gph=+$('carbs').value,total=dur/3600*gph,gels=Math.ceil(total/30);
- $('fg').textContent=gels+' × 30-g-Gels';
- $('fc').textContent='ca. '+Math.round(total)+' g Kohlenhydrate gesamt bei '+gph+' g/h';
- let times=[];for(let i=1;i<=gels;i++){let tt=i*dur/gels;times.push('<div><b>Gel '+i+'</b><br>ca. '+fmt(tt)+' nach Start</div>')}
- $('fs').innerHTML=times.join('');
+function getRun(){
+ let km=+$('d').value, target=$('t').value.trim(), total, ps;
+ if(target){total=sec(target);ps=total/km}
+ else{ps=sec($('p').value||'0:00');total=ps*km}
+ return {km,total,ps}
 }
-$('m').onchange=()=>{let q=$('m').value==='p';$('pb').classList.toggle('hidden',!q);$('tb').classList.toggle('hidden',q);paceCalc()};
-[$('d'),$('p'),$('t')].forEach(x=>x.oninput=paceCalc);$('d').onchange=paceCalc;
-$('ft').oninput=fuelCalc;$('carbs').oninput=fuelCalc;
+function calc(){
+ let x=getRun(), rate=carbRate(x.total/60,$('type').value);
+ $('r').textContent=fmt(x.total);
+ $('s').textContent='Pace: '+Math.floor(x.ps/60)+':'+String(Math.round(x.ps%60)).padStart(2,'0')+' min/km';
+ let a=[1,5,10,15,21.0975,42.195].filter(v=>v<=x.km+.001);
+ $('sp').innerHTML=a.map(v=>'<div class="split"><b>'+(v===21.0975?'HM':v+' km')+'</b><br>'+fmt(x.ps*v)+'</div>').join('');
+ $('carbRate').textContent=rate?rate+' g Kohlenhydrate / Stunde':'Bei dieser Dauer kein zwingendes Fueling während des Laufs';
+ fuelCalc(x,rate);
+}
+function fuelCalc(x,rate){
+ $('fuelTime').textContent=fmt(x.total);
+ if(!rate){$('fuelMeta').textContent='Bei einer Belastung unter 60 Minuten ist im Normalfall kein Fueling während des Laufs erforderlich.';$('fuelSchedule').innerHTML='';return}
+ let gel=+$('gelCarbs').value||30, first=+$('firstGel').value||0, totalCarbs=x.total/3600*rate;
+ let count=Math.ceil(totalCarbs/gel), usable=Math.max(0,x.total-60), last=Math.min(x.total-600,x.total-300);
+ let times=[];
+ if(count===1)times=[Math.min(x.total-300,first*60||x.total/2)];
+ else{
+   let start=Math.min(first*60,x.total-600), end=Math.max(start,last);
+   for(let i=0;i<count;i++) times.push(start+(end-start)*(i/(count-1)));
+ }
+ $('fuelMeta').innerHTML='Automatisch: <b>'+rate+' g/h</b> · ca. <b>'+Math.round(totalCarbs)+' g</b> gesamt · <b>'+count+' Gels</b>';
+ $('fuelSchedule').innerHTML=times.map((v,i)=>'<div><b>Gel '+(i+1)+'</b><br>ca. '+fmt(v)+' nach Start<br>'+gel+' g</div>').join('');
+}
 $('bpace').onclick=()=>{$('paceTab').classList.remove('hidden');$('fuelTab').classList.add('hidden');$('bpace').classList.add('active');$('bfuel').classList.remove('active')};
-$('bfuel').onclick=()=>{$('fuelTab').classList.remove('hidden');$('paceTab').classList.add('hidden');$('bfuel').classList.add('active');$('bpace').classList.remove('active')};
-paceCalc();fuelCalc();
+$('bfuel').onclick=()=>{$('fuelTab').classList.remove('hidden');$('paceTab').classList.add('hidden');$('bfuel').classList.add('active');$('bpace').classList.remove('active');calc()};
+[$('d'),$('p'),$('t'),$('type'),$('gelCarbs'),$('firstGel')].forEach(x=>x.oninput=calc);
+calc();
 </script>
 </body>
 </html>
