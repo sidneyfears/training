@@ -19,7 +19,7 @@ function verifyState(state) {
   const [body, sig] = String(state || '').split('.');
   if (!body || !sig) return null;
   const expected = crypto.createHmac('sha256', required('APP_SECRET')).update(body).digest('base64url');
-  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+  if (sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
   const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
   return payload.exp > Date.now() ? payload : null;
 }
@@ -54,7 +54,7 @@ async function stravaFetch(path, accessToken, options = {}) {
 }
 
 async function db(path, options = {}) {
-  const response = await fetch(`${required('SUPABASE_URL')}/rest/v1/${path}`, {
+  const response = await fetch(`${required('SUPABASE_URL').replace(/\/$/, '')}/rest/v1/${path}`, {
     ...options,
     headers: {
       apikey: required('SUPABASE_SERVICE_ROLE_KEY'),
@@ -71,14 +71,15 @@ async function db(path, options = {}) {
 }
 
 async function getConnection() {
-  const rows = await db('strava_connections?select=*&id=eq.1&limit=1');
+  const rows = await db('strava_accounts?select=*&order=updated_at.desc&limit=1');
   return rows?.[0] || null;
 }
 
 async function saveConnection(data) {
-  return db('strava_connections?id=eq.1', {
-    method: 'PATCH',
-    body: JSON.stringify({ ...data, id: 1, updated_at: new Date().toISOString() })
+  return db('strava_accounts?on_conflict=athlete_id', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify(data)
   });
 }
 
@@ -86,11 +87,12 @@ async function ensureAccessToken(connection) {
   if (connection.expires_at && connection.expires_at * 1000 > Date.now() + 60_000) return connection.access_token;
   const refreshed = await stravaTokenRequest({ grant_type: 'refresh_token', refresh_token: connection.refresh_token });
   await saveConnection({
+    athlete_id: connection.athlete_id,
+    athlete_firstname: connection.athlete_firstname,
+    athlete_lastname: connection.athlete_lastname,
     access_token: refreshed.access_token,
     refresh_token: refreshed.refresh_token,
-    expires_at: refreshed.expires_at,
-    scope: refreshed.scope || connection.scope,
-    athlete_id: refreshed.athlete?.id || connection.athlete_id
+    expires_at: refreshed.expires_at
   });
   return refreshed.access_token;
 }
