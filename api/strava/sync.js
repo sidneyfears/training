@@ -21,21 +21,20 @@ module.exports = async (req, res) => {
             athlete_id: connection.athlete_id,
             name: a.name,
             sport_type: a.sport_type || a.type,
-            start_date: a.start_date,
-            start_date_local: a.start_date_local,
-            distance_m: a.distance,
-            moving_time_s: a.moving_time,
-            elapsed_time_s: a.elapsed_time,
-            total_elevation_gain_m: a.total_elevation_gain,
-            average_speed_mps: a.average_speed,
-            max_speed_mps: a.max_speed,
+            activity_date: a.start_date || a.start_date_local || null,
+            distance_m: a.distance ?? null,
+            moving_time_s: a.moving_time ?? null,
+            elapsed_time_s: a.elapsed_time ?? null,
+            average_speed_mps: a.average_speed ?? null,
+            max_speed_mps: a.max_speed ?? null,
             average_heartrate: a.average_heartrate ?? null,
             max_heartrate: a.max_heartrate ?? null,
-            average_cadence: a.average_cadence ?? null,
             average_watts: a.average_watts ?? null,
+            weighted_average_watts: a.weighted_average_watts ?? null,
             kilojoules: a.kilojoules ?? null,
-            suffer_score: a.suffer_score ?? null,
-            raw_summary: a
+            total_elevation_gain_m: a.total_elevation_gain ?? null,
+            calories: a.calories ?? null,
+            raw: a
           })
         });
         imported++;
