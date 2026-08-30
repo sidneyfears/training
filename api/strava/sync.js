@@ -1,5 +1,33 @@
 const { getConnection, ensureAccessToken, stravaFetch, db } = require('../_lib/strava');
 
+async function importDetails(activityIds, token) {
+  let detailed = 0, splits = 0, laps = 0, bestEfforts = 0, segmentEfforts = 0;
+  const errors = [];
+  for (const id of activityIds) {
+    try {
+      const a = await stravaFetch(`/activities/${encodeURIComponent(id)}?include_all_efforts=true`, token);
+      const payload = {
+        detailed_raw: a,
+        splits_metric: a.splits_metric || [],
+        splits_standard: a.splits_standard || [],
+        laps: a.laps || [],
+        best_efforts: a.best_efforts || [],
+        segment_efforts: a.segment_efforts || [],
+        average_cadence: a.average_cadence ?? null
+      };
+      await db(`strava_activities?strava_id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(payload) });
+      detailed++;
+      splits += payload.splits_metric.length + payload.splits_standard.length;
+      laps += payload.laps.length;
+      bestEfforts += payload.best_efforts.length;
+      segmentEfforts += payload.segment_efforts.length;
+    } catch (e) {
+      errors.push({ id, error: e.message || String(e) });
+    }
+  }
+  return { detailed, splits, laps, best_efforts: bestEfforts, segment_efforts: segmentEfforts, errors };
+}
+
 module.exports = async (req, res) => {
   try {
     const connection = await getConnection();
@@ -32,7 +60,8 @@ module.exports = async (req, res) => {
       imported++;
       activity_ids.push(a.id);
     }
-    res.status(200).json({ ok: true, phase: 'summary', imported, activity_ids, page, per_page: perPage, has_more: activities.length === perPage, next_page: activities.length === perPage ? page + 1 : null });
+    const details = await importDetails(activity_ids.slice(0, 10), token);
+    res.status(200).json({ ok: true, imported, activity_ids, page, per_page: perPage, has_more: activities.length === perPage, next_page: activities.length === perPage ? page + 1 : null, ...details });
   } catch (error) {
     console.error(error);
     res.status(error.status || 500).json({ error: error.message || 'Strava sync failed.' });
